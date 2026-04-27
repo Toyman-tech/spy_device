@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { FileAudio, Clock } from "lucide-react";
+import { FileAudio, Clock, Trash2 } from "lucide-react";
 import CustomAudioPlayer from "./CustomAudioPlayer";
 
 type Recording = {
@@ -61,6 +61,33 @@ export default function RecordingsGrid() {
     fetchRecordings();
   }, []);
 
+  const handleDelete = async (fileName: string) => {
+    const isConfirmed = window.confirm(`Are you sure you want to delete ${fileName}?`);
+    if (!isConfirmed) return;
+
+    const BUCKET_NAME = "spy-bug";
+    
+    // Remove from bucket
+    const { error } = await supabase.storage.from(BUCKET_NAME).remove([fileName]);
+
+    if (error) {
+      console.error("Error deleting recording:", error);
+      alert("Failed to delete recording.");
+    } else {
+      // Update state
+      setRecordings((prev) => {
+        const newRecordings = prev.filter((rec) => rec.name !== fileName);
+        
+        // Adjust pagination if we delete the last item on a page
+        if (newRecordings.length > 0 && newRecordings.length % ITEMS_PER_PAGE === 0 && currentPage > 1 && currentPage > Math.ceil(newRecordings.length / ITEMS_PER_PAGE)) {
+          setCurrentPage(p => p - 1);
+        }
+        
+        return newRecordings;
+      });
+    }
+  };
+
   if (isLoading) {
     return <div className="empty-state">Loading recordings...</div>;
   }
@@ -83,11 +110,16 @@ export default function RecordingsGrid() {
           <div className="grid">
             {recordings.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((rec, index) => (
               <div key={index} className="recording-card glass-panel">
-                <div className="recording-info">
-                  <span className="recording-name">{rec.name}</span>
-                  <span className="recording-date">
-                    {rec.created_at ? new Date(rec.created_at).toLocaleString() : "Unknown date"}
-                  </span>
+                <div className="recording-header">
+                  <div className="recording-info">
+                    <span className="recording-name">{rec.name}</span>
+                    <span className="recording-date">
+                      {rec.created_at ? new Date(rec.created_at).toLocaleString() : "Unknown date"}
+                    </span>
+                  </div>
+                  <button onClick={() => handleDelete(rec.name)} className="delete-btn" aria-label="Delete recording" title="Delete recording">
+                    <Trash2 size={18} />
+                  </button>
                 </div>
                 <CustomAudioPlayer src={rec.url} />
               </div>

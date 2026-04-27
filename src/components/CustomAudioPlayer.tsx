@@ -49,7 +49,7 @@ export default function CustomAudioPlayer({ src }: { src: string }) {
     };
   }, [src]);
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
@@ -59,8 +59,13 @@ export default function CustomAudioPlayer({ src }: { src: string }) {
         const event = new CustomEvent("spy-audio-play", { detail: { src } });
         window.dispatchEvent(event);
         
-        audioRef.current.play();
         setIsPlaying(true);
+        try {
+          await audioRef.current.play();
+        } catch (error) {
+          // Playback blocked or interrupted by pause (AbortError) happens commonly
+          setIsPlaying(false);
+        }
       }
     }
   };
